@@ -8,6 +8,7 @@ import math
 usage = 'Usage: python regression.py -i <input file>'
 dataPoints = {
     49: (lambda x: float(x) / 17),
+    64: (lambda x: 0 if int(x) == 2 else 1 )
 }
 rIndex = 313
 rFunction = (lambda x: 0 if int(x) == -2 else 1 )
@@ -17,46 +18,12 @@ def getDataMatrix( csvPath, columns, responseIndex, responseFunction, responseVe
     with open( csvPath ) as csvfile:
         reader = csv.reader( csvfile, delimiter=',' )
         for row in reader:
-            dataMatrix.append( list( ( columns[i](row[i]) ) for i in columns ) )
+            mRow = list( ( columns[i](row[i]) ) for i in columns ) 
+            mRow.append( 1 )
+            dataMatrix.append( mRow )
             responseVec.append( responseFunction( row[responseIndex] ) );
     return True
 
-"""
-def vecAdd( vectorA, vectorB ):
-    ret = list()
-    if len( vectorA ) != len( vectorB ):
-        return False
-    for i in range( len( vectorA ) ):
-        ret.append( vectorA[i] + vectorB[i] )
-    return ret
-
-def vecMult( vector, scalar ):
-    ret = list()
-    for i in vector:
-        ret.append(i*scalar)
-    return ret 
-
-def transposeMatrix( matrix ):
-    ret = list()
-    for i in range( len( matrix[0] ) ):
-        ret.append( list( 0 for i in range( len( matrix ) ) ) )
-    
-    for i in range( len(matrix) ):
-        for j in range(len(matrix[0])):
-            ret[j][i] = matrix[i][j]    
-    return ret
-
-def multiplyMatrix( matrixA, matrixB ):
-    ret = list()
-    for i in range( max( len( matrixA ), len( matrixB ) ) ):
-        ret.append( list( 0 for i in range( max( len( matrixA[0] ), len( matrixB[0] ) ) ) ) ) 
-
-    for i in range( len(matrixA) ):
-        for j in range( len(matrixB[0]) ):
-            for k in range( len(matrixB) ):
-                ret[i][j] += matrixA[i][k] * matrixB[k][j] 
-    return ret
-"""
 def scaleVector( scalar, vec ):
     ret = list( 0 for i in range( len( vec ) ) )
     for i in range( len( ret ) ):
@@ -75,25 +42,29 @@ def scalarProduct( vecA, vecB ):
         ret += vecA[i] * vecB[i]
     return ret
 
-def logisticVal( x ):
-    return 1 / ( 1 + math.exp( -x ) )
+def probability( x ):
+    return 1 / ( 1 + math.exp( x ) )
 
-def modelError( xMatrix, yVec, weights ):
-    g = list( 0 for i in range( len( weights ) ) )
-    for i in range( len( yVec ) ):
-        x = xMatrix[i]
-        y = yVec[i]
-        m = logisticVal( scalarProduct( weights, x ) )
-        g = addVectors( g, scaleVector( m - y, x ) )
-        print( scaleVector( m-y, x ) )
-    return g 
+def modelError( x, y, weights ):
+    m = probability( scalarProduct( scaleVector( -1, weights ), x ) )
+    return m - y
 
-# Runs linear regression on a N by D matrix
-def regression( xMatrix, yResponse, learningRate ):
-    # Create a list of weights the size of one row of the datamatrix
+#Runs linear regression on a N by D matrix
+def regression( xMatrix, yVec, learningRate, iterations ):
+    #Create a list of weights the size of one row of the datamatrix
     weights = list( 0 for i in range( len(xMatrix[0] ) ) )
-    g = modelError( xMatrix, yResponse, weights )   
-  
+    
+    for itr in range( iterations ):
+        g = list( 0 for i in range( len( weights ) ) ) 
+        for i in range( len( yVec ) ):
+            x = xMatrix[i]
+            y = yVec[i]
+            error = modelError( x, y, weights )
+            g = addVectors( g, scaleVector( 1/len(xMatrix), scaleVector( error, x ) ) )
+        #g = addVectors( g, scaleVector( l, weights ) )   
+        weights = addVectors( weights, scaleVector( -learningRate, g ) )
+        print( weights )
+    return weights
 def main( argv ):
     csvFilePath = ''
   
@@ -118,7 +89,15 @@ def main( argv ):
     dataMatrix = list();
     responseVec = list();
     getDataMatrix( csvFilePath, dataPoints, rIndex, rFunction, responseVec, dataMatrix )
-    regression( dataMatrix, responseVec, 0.1 )
+    print( "Running regression..." )
+   
+    for i in dataMatrix:
+        for j in i:
+            if j < 0 or j > 1:
+                print( j )
+                sys.exit()
+   
+    regression( dataMatrix, responseVec, 0.1, 1000 )
 
 if __name__ == "__main__":
     main( sys.argv[1:] )
