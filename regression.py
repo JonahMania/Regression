@@ -6,13 +6,13 @@ import math
 
 usage = 'Usage: python regression.py -t <input training data> -s <input test data> [OPTIONS]\n\
 Options:\n\
-    -i ITERATIONS, -iterations=ITERATIONS  The number of iterations to run while training the data (default 1000).\n\
-    -r RATE -learning-rate=RATE            Learning rate for each training iteration (default 0.1).\n\
-    -l LAMBDA -lambda=LAMBDA               Lambda or "offset" for the model (default 0).\n'
+    -i ITERATIONS, -iterations=ITERATIONS   The number of iterations to run while training the data (default 1000).\n\
+    -l RATE -learning-rate=RATE             Learning rate for each training iteration (default 0.1).\n\
+    -r REGULARIZER -regularizer=REGULARIZER regularizer for the model (default 1).\n'
 
-DEFAULT_ITERATIONS = 2000
+DEFAULT_ITERATIONS = 1000
 DEFAULT_RATE = 0.1
-DEFAULT_LAMBDA = 0
+DEFAULT_REGULARIZER = 1
 
 def encodeValue( x, rangeX ):
     ret = [0]*rangeX
@@ -22,29 +22,31 @@ def encodeValue( x, rangeX ):
     return ret
 
 dataPoints = {
-    #41: (lambda x: encodeCensus( int(x) ) ),                  # 42
-    47: (lambda x: 0 if float(x) == -2 else float(x) ),  # 48
-    62: (lambda x: 1 if int(x) == 1 else 0 ),                 # 63
-    63: (lambda x: 1 if int(x) == 1 else 0 ),                 # 64
-    #68: (lambda x: 0 if int(x) == -2 else int(x) ),       # 68
-    78: (lambda x: 0 if int(x) == 2 else 1 ),                 # 79
-    #3673: (lambda x: encodeValue( x, 5 ) ),                   # 3673
-    #113: (lambda x: encodeValue( int(x), 6 ) ),               # 114
-    131: (lambda x: float(x) / 14 ),                          # 131
-    135: (lambda x: 1 if int(x) == 1 else 0 ),                # 136
-    143: (lambda x: 1 if int(x) == 1 else 0 ),                # 144
-    162: (lambda x: 1 if int(x) == 1 else 0 ),                # 163
-    195: (lambda x: 0 if float(x) == -2 else float(x) ), # 196
-    216: (lambda x: 1 if int(x) == 1 else 0 ),                # 217
-    225: (lambda x: 1 if int(x) == 1 else 0 ),                # 226
-    229: (lambda x: 1 if int(x) == 1 else 0 ),                # 230
-    #231: (lambda x: encodeValue( int(x), 9 ) )
-    293: (lambda x: 1 if int(x) == 1 else 0 )                 # 294
-
+    9: (lambda x: encodeValue( int(x), 9 ) ),             # 42
+    11: (lambda x: 0 if float(x) == -2 else float(x) ),   # 48
+    22: (lambda x: 1 if int(x) == 1 else 0 ),             # 63
+    23: (lambda x: 1 if int(x) == 1 else 0 ),             # 64
+    27: (lambda x: 0 if int(x) == -2 else int(x) ),       # 68
+    29: (lambda x: 0 if int(x) == 2 else 1 ),             # 79
+    2990: (lambda x: encodeValue( int(x), 5 ) ),          # 3673
+    50: (lambda x: encodeValue( int(x), 6 ) ),            # 114
+    60: (lambda x: float(x) / 14 ),                       # 131
+    63: (lambda x: 1 if int(x) == 1 else 0 ),             # 136
+    71: (lambda x: 1 if int(x) == 1 else 0 ),             # 144
+    89: (lambda x: 1 if int(x) == 1 else 0 ),             # 163
+    103: (lambda x: 0 if float(x) == -2 else float(x) ),  # 196
+    115: (lambda x: 1 if int(x) == 1 else 0 ),            # 217
+    119: (lambda x: 1 if int(x) == 1 else 0 ),            # 226
+    237: (lambda x: 1 if int(x) == 1 else 0 ),            # 230
+    125: (lambda x: encodeValue( -2, 9 ) if int(x) == 9 else encodeValue( int(x), 9 ) ), # 232
+    157: (lambda x: 1 if int(x) == 1 else 0 ),            # 294
+    169: (lambda x: 0 if int(x) == 99 else int(x) * 12 ), # 306
+    170: (lambda x: 0 if int(x) == 99 else int(x) ),      # 308
+    171: (lambda x: 0 if int(x) == 999 else int(x) )      # 310
 }
 
-rIndex = 313
-rFunction = (lambda x: 0 if int(x) == -2 else 1 )
+rIndex = 172
+rFunction = (lambda x: 1 if int(x) == 1 else 0 )
 
 # Parses a csv file and returns a matrix of its data as a 2d array ( N by D )
 # Where N is the number of datapoints in the set and D is the number of dimensions
@@ -54,7 +56,12 @@ def getDataMatrix( csvPath, columns, responseIndex, responseFunction, responseVe
         for row in reader:
             mRow = list()
             for i in columns:
-                value = columns[i](row[i])
+                value = columns[i](row[i-1])
+                #Handle merge of 306 and 308
+                if i == 170:
+                    continue
+                if i == 169:
+                    value += columns[i](169)
                 if isinstance( value, list ):
                     for v in value:
                         mRow.append( v )
@@ -62,7 +69,7 @@ def getDataMatrix( csvPath, columns, responseIndex, responseFunction, responseVe
                     mRow.append( value )
             mRow.append( 1 )
             dataMatrix.append( mRow )
-            responseVec.append( responseFunction( row[responseIndex] ) );
+            responseVec.append( responseFunction( row[responseIndex-1] ) );
     return True
 
 def normalizeMatrix( matrix ):
@@ -75,7 +82,10 @@ def normalizeMatrix( matrix ):
     #Normalize each value
     for i in matrix:
         for j in range(len(i)):
+            if maxVals[j] == 0:
+                continue
             i[j] = i[j] / maxVals[j]
+
     return matrix
 
 
@@ -105,9 +115,10 @@ def modelError( x, y, weights ):
     return m - y
 
 #Runs linear regression on a N by D matrix
-def regression( xMatrix, yVec, learningRate, l, iterations ):
+def regression( xMatrix, yVec, learningRate, regularization, iterations ):
     #Create a list of weights the size of one row of the datamatrix
     weights = list( 0 for i in range( len(xMatrix[0] ) ) )
+    N = len( yVec )
     for itr in range( iterations ):
         g = list( 0 for i in range( len( weights ) ) )
         for i in range( len( yVec ) ):
@@ -115,9 +126,13 @@ def regression( xMatrix, yVec, learningRate, l, iterations ):
             y = yVec[i]
             error = modelError( x, y, weights )
             g = addVectors( g, scaleVector( error, x ) )
-        g = addVectors( g, scaleVector( l, weights ) )
-        g = scaleVector( 1/len( yVec ), g )
+        #Normalize gradient
+        g = scaleVector( 1 / N, g )
+        #Adjust g for regularization with weights
+        g = addVectors( g, scaleVector( regularization, weights ) )
+        #Scale weights for learning rate
         weights = addVectors( weights, scaleVector( -learningRate, g ) )
+        #Print status update for user every 20 cycles
         if not(itr % 20 ):
             print( str( round( (itr/iterations)*100 ) ) +'%' )
     return weights
@@ -150,14 +165,14 @@ def main( argv ):
     testDataPath = ''
     iterations = DEFAULT_ITERATIONS
     rate = DEFAULT_RATE
-    lambdaVal = DEFAULT_LAMBDA
+    regularization = DEFAULT_REGULARIZER
 
     # Make sure the correct arguments have been passed
     if len( argv ) < 3:
         print( usage )
         sys.exit( 2 )
     try:
-        opts, args = getopt.getopt( argv, 't:s:i:r:l:h', ["training-data=","test-data=","iterations=","learning-rate=","lambda="] )
+        opts, args = getopt.getopt( argv, 't:s:i:r:l:h', ["training-data=","test-data=","iterations=","learning-rate=","regularizer="] )
     except getopt.GetoptError:
         print( usage )
         sys.exit( 2 )
@@ -172,10 +187,10 @@ def main( argv ):
             testDataPath = arg
         elif opt in ( '-i', "iterations=" ):
             iterations = int(arg)
-        elif opt in ( '-r', "rate=" ):
+        elif opt in ( '-l', "rate=" ):
             rate = float(arg)
-        elif opt in ( '-l', "lambda=" ):
-            lambdaVal = float(arg)
+        elif opt in ( '-r', "regularizer=" ):
+            regularization = float(arg)
 
     #Make sure we got a test and training data path
     if trainingDataPath == '' or testDataPath == '':
@@ -206,7 +221,7 @@ def main( argv ):
                 print( "Test data point out of range [0,1] at index:",j,"with value:",i[j] )
                 sys.exit(2)
     print( "Running regression..." )
-    weights = regression( trainingDataMatrix, trainingResponseVec, rate, lambdaVal, iterations )
+    weights = regression( trainingDataMatrix, trainingResponseVec, rate, regularization, iterations )
     print( weights )
     print( "Testing model..." )
     testModel( testDataMatrix, testResponseVec, weights )
