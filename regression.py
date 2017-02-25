@@ -4,6 +4,8 @@ import getopt
 import csv
 import math
 
+from vectorMath import *
+
 usage = 'Usage: python regression.py -t <input training data> -s <input test data> [OPTIONS]\n\
 Options:\n\
     -i ITERATIONS, -iterations=ITERATIONS   The number of iterations to run while training the data (default 1000).\n\
@@ -14,98 +16,14 @@ DEFAULT_ITERATIONS = 1000
 DEFAULT_RATE = 0.1
 DEFAULT_REGULARIZER = 1
 
-def encodeValue( x, rangeX ):
-    ret = [0]*rangeX
-    if x == -2:
-        return ret
-    ret[ x-1 ] = 1
-    return ret
-
-dataPoints = {
-    9: (lambda x: encodeValue( int(x), 9 ) ),             # 42
-    11: (lambda x: 0 if float(x) == -2 else float(x) ),   # 48
-    22: (lambda x: 1 if int(x) == 1 else 0 ),             # 63
-    23: (lambda x: 1 if int(x) == 1 else 0 ),             # 64
-    27: (lambda x: 0 if int(x) == -2 else int(x) ),       # 68
-    29: (lambda x: 0 if int(x) == 2 else 1 ),             # 79
-    2990: (lambda x: encodeValue( int(x), 5 ) ),          # 3673
-    50: (lambda x: encodeValue( int(x), 6 ) ),            # 114
-    60: (lambda x: float(x) / 14 ),                       # 131
-    63: (lambda x: 1 if int(x) == 1 else 0 ),             # 136
-    71: (lambda x: 1 if int(x) == 1 else 0 ),             # 144
-    89: (lambda x: 1 if int(x) == 1 else 0 ),             # 163
-    103: (lambda x: 0 if float(x) == -2 else float(x) ),  # 196
-    115: (lambda x: 1 if int(x) == 1 else 0 ),            # 217
-    119: (lambda x: 1 if int(x) == 1 else 0 ),            # 226
-    237: (lambda x: 1 if int(x) == 1 else 0 ),            # 230
-    125: (lambda x: encodeValue( -2, 9 ) if int(x) == 9 else encodeValue( int(x), 9 ) ), # 232
-    157: (lambda x: 1 if int(x) == 1 else 0 ),            # 294
-    169: (lambda x: 0 if int(x) == 99 else int(x) * 12 ), # 306
-    170: (lambda x: 0 if int(x) == 99 else int(x) ),      # 308
-    171: (lambda x: 0 if int(x) == 999 else int(x) )      # 310
-}
-
-rIndex = 172
-rFunction = (lambda x: 1 if int(x) == 1 else 0 )
-
-# Parses a csv file and returns a matrix of its data as a 2d array ( N by D )
-# Where N is the number of datapoints in the set and D is the number of dimensions
-def getDataMatrix( csvPath, columns, responseIndex, responseFunction, responseVec, dataMatrix ):
-    with open( csvPath ) as csvfile:
-        reader = csv.reader( csvfile, delimiter=',' )
-        for row in reader:
-            mRow = list()
-            for i in columns:
-                value = columns[i](row[i-1])
-                #Handle merge of 306 and 308
-                if i == 170:
-                    continue
-                if i == 169:
-                    value += columns[i](169)
-                if isinstance( value, list ):
-                    for v in value:
-                        mRow.append( v )
-                else:
-                    mRow.append( value )
-            mRow.append( 1 )
-            dataMatrix.append( mRow )
-            responseVec.append( responseFunction( row[responseIndex-1] ) );
+#Gets data from a csv assuming that the first column is the response variable
+def getDataMatrix( path, dataMatrix, responseVector ): 
+    with open( path, 'r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',')
+        for row in csvreader:
+            dataMatrix.append( [ float(x) for x in row[1:] ] )
+            responseVector.append( float(row[0]) )
     return True
-
-def normalizeMatrix( matrix ):
-    maxVals = list( 0 for i in range( len( matrix[0] ) ) )
-    #Get max of each value
-    for i in matrix:
-        for j in range(len(i)):
-            if maxVals[j] < i[j]:
-                maxVals[j] = i[j]
-    #Normalize each value
-    for i in matrix:
-        for j in range(len(i)):
-            if maxVals[j] == 0:
-                continue
-            i[j] = i[j] / maxVals[j]
-
-    return matrix
-
-
-def scaleVector( scalar, vec ):
-    ret = list( 0 for i in range( len( vec ) ) )
-    for i in range( len( ret ) ):
-        ret[i] = vec[i] * scalar
-    return ret
-
-def addVectors( vecA, vecB ):
-    ret = list( 0 for i in range( len( vecA ) ) )
-    for i in range( len( vecA ) ):
-        ret[i] = vecA[i] + vecB[i]
-    return ret
-
-def scalarProduct( vecA, vecB ):
-    ret = 0
-    for i in range( len( vecA ) ):
-        ret += vecA[i] * vecB[i]
-    return ret
 
 def probability( x ):
     return 1 / ( 1 + math.exp( x ) )
@@ -203,12 +121,9 @@ def main( argv ):
     testDataMatrix = list();
     testResponseVec = list();
     print( "Parsing training data..." )
-    getDataMatrix( trainingDataPath, dataPoints, rIndex, rFunction, trainingResponseVec, trainingDataMatrix );
+    getDataMatrix( trainingDataPath, trainingDataMatrix, trainingResponseVec );
     print( "Parsing test data..." )
-    getDataMatrix( testDataPath, dataPoints, rIndex, rFunction, testResponseVec, testDataMatrix );
-    print( "Normalizing values..." )
-    trainingDataMatrix = normalizeMatrix( trainingDataMatrix )
-    testDataMatrix = normalizeMatrix( testDataMatrix )
+    getDataMatrix( testDataPath, testDataMatrix, testResponseVec );
     #Make sure all our points are normalized
     for i in trainingDataMatrix:
         for j in range( len( i ) ):
