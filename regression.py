@@ -2,9 +2,9 @@
 import sys
 import getopt
 import csv
-import math
 
-from vectorMath import *
+from trainModel import trainModel
+from testModel import testModel
 
 usage = 'Usage: python regression.py -t <input training data> -s <input test data> [OPTIONS]\n\
 Options:\n\
@@ -23,59 +23,6 @@ def getDataMatrix( path, dataMatrix, responseVector ):
         for row in csvreader:
             dataMatrix.append( [ float(x) for x in row[1:] ] )
             responseVector.append( float(row[0]) )
-    return True
-
-def probability( x ):
-    return 1 / ( 1 + math.exp( x ) )
-
-def modelError( x, y, weights ):
-    m = probability( scalarProduct( scaleVector( -1, weights ), x ) )
-    return m - y
-
-#Runs linear regression on a N by D matrix
-def regression( xMatrix, yVec, learningRate, regularization, iterations ):
-    #Create a list of weights the size of one row of the datamatrix
-    weights = list( 0 for i in range( len(xMatrix[0] ) ) )
-    N = len( yVec )
-    for itr in range( iterations ):
-        g = list( 0 for i in range( len( weights ) ) )
-        for i in range( len( yVec ) ):
-            x = xMatrix[i]
-            y = yVec[i]
-            error = modelError( x, y, weights )
-            g = addVectors( g, scaleVector( error, x ) )
-        #Normalize gradient
-        g = scaleVector( 1 / N, g )
-        #Adjust g for regularization with weights
-        g = addVectors( g, scaleVector( regularization, weights ) )
-        #Scale weights for learning rate
-        weights = addVectors( weights, scaleVector( -learningRate, g ) )
-        #Print status update for user every 20 cycles
-        if not(itr % 20 ):
-            print( str( round( (itr/iterations)*100 ) ) +'%' )
-    return weights
-
-def testModel( xMatrix, yVec, weights ):
-    numCorrect = 0
-    numFalse = 0
-    total = len( xMatrix )
-    if len( xMatrix[0] ) != len( weights ):
-        print( "Error testing model: weight vector and data size dont match" )
-        return False
-    for i in range( total ):
-        x = xMatrix[i]
-        y = yVec[i]
-        p = scalarProduct( weights, x )
-        if p >= 0 and y == 1:
-            numCorrect += 1
-        if p < 0 and y == 0:
-            numCorrect += 1
-    numFalse = total - numCorrect
-    message = "Total Test Records: "+str(total)+"\n"
-    message += "False Predictions: "+str(numFalse)+"\n"
-    message += "Correct Predictions: "+str(numCorrect)+"\n"
-    message += "Model Accuracy: "+str( round( ( numCorrect / total ) * 100, 2 ) )+"%"
-    print( message )
     return True
 
 def main( argv ):
@@ -136,7 +83,7 @@ def main( argv ):
                 print( "Test data point out of range [0,1] at index:",j,"with value:",i[j] )
                 sys.exit(2)
     print( "Running regression..." )
-    weights = regression( trainingDataMatrix, trainingResponseVec, rate, regularization, iterations )
+    weights = trainModel( trainingDataMatrix, trainingResponseVec, rate, regularization, iterations )
     print( weights )
     print( "Testing model..." )
     testModel( testDataMatrix, testResponseVec, weights )
