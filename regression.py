@@ -2,6 +2,8 @@
 import sys
 import getopt
 import csv
+import shutil
+import math
 
 from trainModel import trainModel
 from testModel import testModel
@@ -9,11 +11,11 @@ from testModel import testModel
 usage = 'Usage: python regression.py -t <input training data> -s <input test data> [OPTIONS]\n\
 Options:\n\
     -i ITERATIONS, -iterations=ITERATIONS   The number of iterations to run while training the data (default 1000).\n\
-    -l RATE -learning-rate=RATE             Learning rate for each training iteration (default 0.1).\n\
+    -l RATE -learning-rate=RATE             Learning rate for each training iteration (default 0.00001).\n\
     -r REGULARIZER -regularizer=REGULARIZER regularizer for the model (default 1).\n'
 
 DEFAULT_ITERATIONS = 1000
-DEFAULT_RATE = 0.1
+DEFAULT_RATE = 0.00001
 DEFAULT_REGULARIZER = 1
 
 #Gets data from a csv assuming that the first column is the response variable
@@ -24,6 +26,33 @@ def getDataMatrix( path, dataMatrix, responseVector ):
             dataMatrix.append( [ float(x) for x in row[1:] ] )
             responseVector.append( float(row[0]) )
     return True
+
+#Prints a progress bar to the screen
+def printProgressBar( currIteration, totalIterations ):
+    #Get deminsions for the current terminal
+    terminalDimensions = shutil.get_terminal_size( ( 80, 20 ) )
+    #Get the percentage of iterations complete
+    percentage = currIteration/totalIterations
+    #Create bar string
+    percentCols = math.ceil( ( terminalDimensions.columns - 8 ) * percentage )
+    bar = '#' * percentCols + ' ' * ( ( terminalDimensions.columns - 8 ) - percentCols )
+    sys.stdout.write('\r[{0}] {1}%'.format( bar, round( percentage * 100 ) ) )
+    #If its the last iteration of the bar print a new line
+    if currIteration == totalIterations:
+        print()
+
+#Callback that fires every percent increase of the training loop
+def trainingCallback( currIteration, totalIterations, weights ):
+    printProgressBar( currIteration, totalIterations )
+
+#Callback that fires when the test is complete
+def testCallback( numCorrect, totalTested ):
+    numFalse = totalTested - numCorrect
+    message = "Total Test Records: "+str(totalTested)+"\n"
+    message += "False Predictions: "+str(numFalse)+"\n"
+    message += "Correct Predictions: "+str(numCorrect)+"\n"
+    message += "Model Accuracy: "+str( round( ( numCorrect / totalTested ) * 100, 2 ) )+"%"
+    print( message )
 
 def main( argv ):
     trainingDataPath = ''
@@ -83,10 +112,10 @@ def main( argv ):
                 print( "Test data point out of range [0,1] at index:",j,"with value:",i[j] )
                 sys.exit(2)
     print( "Running regression..." )
-    weights = trainModel( trainingDataMatrix, trainingResponseVec, rate, regularization, iterations )
+    weights = trainModel( trainingDataMatrix, trainingResponseVec, rate, regularization, iterations, trainingCallback )
     print( weights )
     print( "Testing model..." )
-    testModel( testDataMatrix, testResponseVec, weights )
+    testModel( testDataMatrix, testResponseVec, weights, testCallback )
 
 if __name__ == "__main__":
     main( sys.argv[1:] )
