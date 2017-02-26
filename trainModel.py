@@ -19,7 +19,6 @@ def trainModel( xMatrix, yVec, learningRate, regularization, iterations, callbac
     #Create a list of weights the size of one row of the datamatrix
     weights = list( 0 for i in range( len(xMatrix[0] ) ) )
     N = len( yVec )
-    modBy = math.ceil( iterations / 100 ) 
     for itr in range( iterations ):
         g = list( 0 for i in range( len( weights ) ) )
         for i in range( len( yVec ) ):
@@ -31,9 +30,8 @@ def trainModel( xMatrix, yVec, learningRate, regularization, iterations, callbac
         g = addVectors( g, scaleVector( regularization, weights ) )
         #Scale weights for learning rate
         weights = addVectors( weights, scaleVector( -learningRate, g ) )
-        #Run callback at every percent increase
-        if ( itr + 1) % modBy == 0:
-            callback( itr+1, iterations, weights ) 
+        #Run callback
+        callback( itr+1, iterations, weights ) 
     return weights
 
 

@@ -12,11 +12,14 @@ usage = 'Usage: python regression.py -t <input training data> -s <input test dat
 Options:\n\
     -i ITERATIONS, -iterations=ITERATIONS   The number of iterations to run while training the data (default 1000).\n\
     -l RATE -learning-rate=RATE             Learning rate for each training iteration (default 0.00001).\n\
-    -r REGULARIZER -regularizer=REGULARIZER regularizer for the model (default 1).\n'
+    -r REGULARIZER -regularizer=REGULARIZER regularizer for the model (default 1).\n\
+    -w PATH -save-weights=PATH              appends the weights to a csv file during every iteration of the training loop. Will create a new file if none exists\n'
 
 DEFAULT_ITERATIONS = 1000
 DEFAULT_RATE = 0.00001
 DEFAULT_REGULARIZER = 1
+#File descriptor to write weights into 
+weightsFile = None;
 
 #Gets data from a csv assuming that the first column is the response variable
 def getDataMatrix( path, dataMatrix, responseVector ): 
@@ -41,9 +44,14 @@ def printProgressBar( currIteration, totalIterations ):
     if currIteration == totalIterations:
         print()
 
-#Callback that fires every percent increase of the training loop
+#Callback that fires every of the training loop
 def trainingCallback( currIteration, totalIterations, weights ):
-    printProgressBar( currIteration, totalIterations )
+    #Save weights to file
+    if weightsFile != None:
+        weightsFile.write( ','.join( [ str(x) for x in weights ] )+'\n' )
+    #Only print new prgress bar when we are at t new percentage point
+    if currIteration % math.ceil( totalIterations / 100 ) == 0:
+        printProgressBar( currIteration, totalIterations )
 
 #Callback that fires when the test is complete
 def testCallback( numCorrect, totalTested ):
@@ -60,13 +68,15 @@ def main( argv ):
     iterations = DEFAULT_ITERATIONS
     rate = DEFAULT_RATE
     regularization = DEFAULT_REGULARIZER
+    weightsPath = ""
+    global weightsFile
 
     # Make sure the correct arguments have been passed
     if len( argv ) < 3:
         print( usage )
         sys.exit( 2 )
     try:
-        opts, args = getopt.getopt( argv, 't:s:i:r:l:h', ["training-data=","test-data=","iterations=","learning-rate=","regularizer="] )
+        opts, args = getopt.getopt( argv, 't:s:i:r:l:w:h', ["training-data=","test-data=","iterations=","learning-rate=","regularizer=","save-weights="] )
     except getopt.GetoptError:
         print( usage )
         sys.exit( 2 )
@@ -85,11 +95,16 @@ def main( argv ):
             rate = float(arg)
         elif opt in ( '-r', "regularizer=" ):
             regularization = float(arg)
+        elif opt in ( '-w', "save-weights=" ):
+            weightsPath = str( arg )
 
     #Make sure we got a test and training data path
     if trainingDataPath == '' or testDataPath == '':
         print( usage )
         sys.exit( 2 )
+
+    if weightsPath != "":
+        weightsFile = open( weightsPath, 'a' )
 
     #Get our test and training data
     trainingDataMatrix = list();
@@ -113,6 +128,9 @@ def main( argv ):
                 sys.exit(2)
     print( "Running regression..." )
     weights = trainModel( trainingDataMatrix, trainingResponseVec, rate, regularization, iterations, trainingCallback )
+    #Close weights file if it is open
+    if weightsFile != None:
+        weightsFile.close()
     print( weights )
     print( "Testing model..." )
     testModel( testDataMatrix, testResponseVec, weights, testCallback )
