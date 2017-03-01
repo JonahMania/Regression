@@ -1,12 +1,12 @@
 #!/usr/bin/python
 import sys
 import getopt
-import csv
 import shutil
 import math
 
 from trainModel import trainModel
 from testModel import testModel
+from parser import getDataMatrix
 
 usage = 'Usage: python regression.py -t <input training data> -s <input test data> [OPTIONS]\n\
 Options:\n\
@@ -20,15 +20,6 @@ DEFAULT_RATE = 0.00001
 DEFAULT_REGULARIZER = 1
 #File descriptor to write weights into 
 weightsFile = None;
-
-#Gets data from a csv assuming that the first column is the response variable
-def getDataMatrix( path, dataMatrix, responseVector ): 
-    with open( path, 'r') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',')
-        for row in csvreader:
-            dataMatrix.append( [ float(x) for x in row[1:] ] )
-            responseVector.append( float(row[0]) )
-    return True
 
 #Prints a progress bar to the screen
 def printProgressBar( currIteration, totalIterations ):
